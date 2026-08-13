@@ -1,0 +1,24 @@
+{
+  "name": "github-mcp-server",
+  "version": "1.0.0",
+  "description": "Local MCP server that connects Claude Desktop to your GitHub account",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "github-mcp-server": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.7.0",
+    "@octokit/rest": "^21.0.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.6.3"
+  }
+}
