@@ -15,6 +15,14 @@ leaves your computer except to talk to GitHub's API directly.
 - `github_create_issue` — create an issue
 - `github_list_pull_requests` — list PRs in a repo
 - `github_search_code` — search code across GitHub
+- `github_list_commits` — list commits in a repo (filter by branch, path, or author)
+- `github_get_commit` — get a single commit with changed files and diff stats
+- `github_list_branches` — list branches in a repo
+- `github_get_issue` — get full details of a single issue
+- `github_get_pull_request` — get full details of a single PR
+- `github_list_pr_files` — list files changed in a PR
+- `github_add_issue_comment` — comment on an issue or PR
+- `github_search_issues` — search issues and PRs across GitHub
 
 ## 1. Prerequisites
 

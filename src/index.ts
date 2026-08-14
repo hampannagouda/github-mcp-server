@@ -240,6 +240,229 @@ server.tool(
   }
 );
 
+server.tool(
+  "github_list_commits",
+  "List commits in a repository (optionally filtered by branch/ref, path, or author).",
+  {
+    owner: z.string(),
+    repo: z.string(),
+    sha: z
+      .string()
+      .optional()
+      .describe("Branch, tag, or commit SHA to start listing from (defaults to default branch)"),
+    path: z.string().optional().describe("Only commits touching this file path"),
+    author: z.string().optional().describe("Filter by GitHub login or email"),
+    per_page: z.number().min(1).max(100).default(20),
+  },
+  async ({ owner, repo, sha, path, author, per_page }) => {
+    const { data } = await octokit.repos.listCommits({
+      owner,
+      repo,
+      sha,
+      path,
+      author,
+      per_page,
+    });
+    const simplified = data.map((c) => ({
+      sha: c.sha,
+      message: c.commit.message,
+      author: c.commit.author?.name,
+      date: c.commit.author?.date,
+      html_url: c.html_url,
+    }));
+    return {
+      content: [{ type: "text", text: JSON.stringify(simplified, null, 2) }],
+    };
+  }
+);
+
+server.tool(
+  "github_get_commit",
+  "Get details of a single commit, including changed files and diff stats.",
+  {
+    owner: z.string(),
+    repo: z.string(),
+    ref: z.string().describe("Commit SHA, branch, or tag"),
+  },
+  async ({ owner, repo, ref }) => {
+    const { data } = await octokit.repos.getCommit({ owner, repo, ref });
+    const simplified = {
+      sha: data.sha,
+      message: data.commit.message,
+      author: data.commit.author?.name,
+      date: data.commit.author?.date,
+      html_url: data.html_url,
+      stats: data.stats,
+      files: data.files?.map((f) => ({
+        filename: f.filename,
+        status: f.status,
+        additions: f.additions,
+        deletions: f.deletions,
+      })),
+    };
+    return {
+      content: [{ type: "text", text: JSON.stringify(simplified, null, 2) }],
+    };
+  }
+);
+
+server.tool(
+  "github_list_branches",
+  "List branches in a repository.",
+  {
+    owner: z.string(),
+    repo: z.string(),
+    per_page: z.number().min(1).max(100).default(30),
+  },
+  async ({ owner, repo, per_page }) => {
+    const { data } = await octokit.repos.listBranches({ owner, repo, per_page });
+    const simplified = data.map((b) => ({
+      name: b.name,
+      sha: b.commit.sha,
+      protected: b.protected,
+    }));
+    return {
+      content: [{ type: "text", text: JSON.stringify(simplified, null, 2) }],
+    };
+  }
+);
+
+server.tool(
+  "github_get_issue",
+  "Get full details of a single issue, including its body.",
+  {
+    owner: z.string(),
+    repo: z.string(),
+    issue_number: z.number(),
+  },
+  async ({ owner, repo, issue_number }) => {
+    const { data } = await octokit.issues.get({ owner, repo, issue_number });
+    const simplified = {
+      number: data.number,
+      title: data.title,
+      state: data.state,
+      user: data.user?.login,
+      labels: data.labels.map((l) => (typeof l === "string" ? l : l.name)),
+      body: data.body,
+      html_url: data.html_url,
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
+    return {
+      content: [{ type: "text", text: JSON.stringify(simplified, null, 2) }],
+    };
+  }
+);
+
+server.tool(
+  "github_get_pull_request",
+  "Get full details of a single pull request, including its body, branches, and merge status.",
+  {
+    owner: z.string(),
+    repo: z.string(),
+    pull_number: z.number(),
+  },
+  async ({ owner, repo, pull_number }) => {
+    const { data } = await octokit.pulls.get({ owner, repo, pull_number });
+    const simplified = {
+      number: data.number,
+      title: data.title,
+      state: data.state,
+      user: data.user?.login,
+      body: data.body,
+      head: data.head.ref,
+      base: data.base.ref,
+      merged: data.merged,
+      mergeable: data.mergeable,
+      additions: data.additions,
+      deletions: data.deletions,
+      changed_files: data.changed_files,
+      html_url: data.html_url,
+      created_at: data.created_at,
+    };
+    return {
+      content: [{ type: "text", text: JSON.stringify(simplified, null, 2) }],
+    };
+  }
+);
+
+server.tool(
+  "github_list_pr_files",
+  "List the files changed in a pull request.",
+  {
+    owner: z.string(),
+    repo: z.string(),
+    pull_number: z.number(),
+    per_page: z.number().min(1).max(100).default(50),
+  },
+  async ({ owner, repo, pull_number, per_page }) => {
+    const { data } = await octokit.pulls.listFiles({
+      owner,
+      repo,
+      pull_number,
+      per_page,
+    });
+    const simplified = data.map((f) => ({
+      filename: f.filename,
+      status: f.status,
+      additions: f.additions,
+      deletions: f.deletions,
+    }));
+    return {
+      content: [{ type: "text", text: JSON.stringify(simplified, null, 2) }],
+    };
+  }
+);
+
+server.tool(
+  "github_add_issue_comment",
+  "Add a comment to an issue or pull request.",
+  {
+    owner: z.string(),
+    repo: z.string(),
+    issue_number: z.number().describe("Issue or PR number"),
+    body: z.string().describe("Comment text (Markdown supported)"),
+  },
+  async ({ owner, repo, issue_number, body }) => {
+    const { data } = await octokit.issues.createComment({
+      owner,
+      repo,
+      issue_number,
+      body,
+    });
+    return {
+      content: [{ type: "text", text: `Comment added: ${data.html_url}` }],
+    };
+  }
+);
+
+server.tool(
+  "github_search_issues",
+  "Search issues and pull requests across GitHub (use `repo:owner/name` to scope to a repo).",
+  {
+    query: z
+      .string()
+      .describe("Search query, e.g. 'repo:facebook/react is:issue is:open label:bug'"),
+    per_page: z.number().min(1).max(50).default(10),
+  },
+  async ({ query, per_page }) => {
+    const { data } = await octokit.search.issuesAndPullRequests({
+      q: query,
+      per_page,
+    });
+    const simplified = data.items.map((i) => ({
+      number: i.number,
+      title: i.title,
+      state: i.state,
+      is_pull_request: !!i.pull_request,
+      html_url: i.html_url,
+    }));
+    return {
+      content: [{ type: "text", text: JSON.stringify(simplified, null, 2) }],
+    };
+  }
+);
+
 // ---- Start server over stdio ----
 
 async function main() {
